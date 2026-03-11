@@ -10,6 +10,17 @@ TOKENS_VALIDOS = {
     "token_service_b": "service_b",
     "token_service_c": "service_c"}
 
+def borrar_db():
+    conn = sqlite3.connect("logs.db")     # Conectamos a la base de datos SQLite (o la creamos si no existe)
+    cursor = conn.cursor()
+    
+    # Borramos la tabla de logs si existe
+    cursor.execute("DROP TABLE IF EXISTS logs")
+    
+    conn.commit()   # Guardamos los cambios en la base de datos
+    conn.close()    # Cerramos la conexión a la base de datos
+    
+borrar_db()
 
 def iniciar_db():
     conn = sqlite3.connect("logs.db")     # Conectamos a la base de datos SQLite (o la creamos si no existe)
@@ -45,7 +56,7 @@ def recibir_logs():
     
     # Si el token es válido, procesamos el log recibido
     datos = request.get_json()
-    
+    print(f"[{datos['severity']}] {datos['service']} -> {datos['message']}")    
     if not datos:
         return jsonify({"error": "Json no recibido"}), 400   # Si no se reciben datos, respondemos con un error 400 (Bad Request)
     
@@ -54,7 +65,7 @@ def recibir_logs():
     
     for campo in campos_requeridos:
         if campo not in datos:
-            return jsonify({"error": f"Falta el campo {campo}"}, 400)  # Si falta algún campo requerido, respondemos con un error 400 (Bad Request)
+            return jsonify({"error": f"Falta el campo {campo}"}), 400  # Si falta algún campo requerido, respondemos con un error 400 (Bad Request)
         
     # Guardamos el log en la base de datos SQLite
     try:
@@ -74,8 +85,8 @@ def recibir_logs():
         conn.commit()
         conn.close() 
         return jsonify({"message": "Log recibido y guardado exitosamente"}), 200   # Si el log se guarda correctamente, respondemos con un mensaje de éxito
-    except:     
-        return jsonify({"error": "Error al guardar el log"}), 500   # Si hay un error al guardar el log, respondemos con un error 500 (Internal Server Error)
+    except Exception as e:     
+        return jsonify({"error": "Error al guardar el log"}, e), 500   # Si hay un error al guardar el log, respondemos con un error 500 (Internal Server Error)
 
 # Endpoint para obtener logs, se pueden agregar filtros por servicio, severidad o rango de fechas
 @app.route("/logs", methods=["GET"])
@@ -88,11 +99,11 @@ def obtener_logs():
     parametros = []
     
     if timestamp_inicio:
-        consulta += "AND timestamp >= ?"
+        consulta += " AND timestamp >= ?"
         parametros.append(timestamp_inicio)
     
     if timestamp_fin:
-        consulta += "AND timestamp <= ?"
+        consulta += " AND timestamp <= ?"
         parametros.append(timestamp_fin)
     
     conn = sqlite3.connect("logs.db")
@@ -108,10 +119,10 @@ def obtener_logs():
         logs.append({
             "id": fila[0],
             "timestamp": fila[1],
-            "received_at": fila[3],
-            "service": fila[4],
-            "severity": fila[5],
-            "message": fila[6]})
+            "received_at": fila[2],
+            "service": fila[3],
+            "severity": fila[4],
+            "message": fila[5]})
     
     return jsonify(logs), 200   # Respondemos con la lista de logs obtenidos    
         
